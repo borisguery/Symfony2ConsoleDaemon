@@ -13,6 +13,8 @@ use
 
 class DaemonRunCommand extends ContainerAwareCommand
 {
+    private $caughtSignal;
+
     public function configure()
     {
         $this
@@ -24,7 +26,7 @@ class DaemonRunCommand extends ContainerAwareCommand
 
     public function execute(InputInterface $input, OutputInterface $output)
     {
-        $isDetached = (bool)$input->getOption('detach');
+        $isDetached = (bool) $input->getOption('detach');
         $pidFilename = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $this->getContainer()->getParameter('bgy_daemon.pid_file');
 
         if (file_exists($pidFilename)) {
@@ -54,6 +56,8 @@ class DaemonRunCommand extends ContainerAwareCommand
                 if (posix_setsid() == -1) {
                     $output->writeln('<error>Unable to detach from the terminal window.</error>');
                 }
+            } else {
+                pcntl_signal(SIGINT, array($this, 'setCaughtSignal'));
             }
 
             $posixProcessId = posix_getpid();
@@ -67,13 +71,31 @@ class DaemonRunCommand extends ContainerAwareCommand
             fclose($pidFile);
 
             while (true) {
+                switch ($this->getCaughtSignal()) {
+                    case SIGINT:
+                        fwrite($STDOUT, "Caught ^C. Interrupting...\n");
+                        fclose($STDOUT);
+                        unlink($pidFilename);
+                        exit(-1);
+                }
                 if (!file_exists($pidFilename)) {
                     fwrite($STDOUT, "PID file not found. Exiting...\n");
+                    fclose($STDOUT);
                     exit(-1);
                 }
                 sleep($input->getOption('sleep'));
                 fwrite($STDOUT, $posixProcessId . ' => ' . date(\DateTime::ISO8601) . "\n");
             }
         }
+    }
+
+    protected function setCaughtSignal($sig)
+    {
+        $this->caughtSignal = $sig;
+    }
+
+    protected function getCaughtSignal()
+    {
+        return $this->caughtSignal;
     }
 }
