@@ -9,6 +9,7 @@ class AppKernel extends Kernel
     {
         $bundles = array(
             new Symfony\Bundle\MonologBundle\MonologBundle(),
+            new Bgy\DaemonBundle\BgyDaemonBundle(),
         );
 
         return $bundles;
