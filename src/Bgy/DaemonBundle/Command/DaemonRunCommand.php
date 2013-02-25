@@ -50,7 +50,7 @@ class DaemonRunCommand extends ContainerAwareCommand
                     $output->writeln('<error>The process failed to fork.</error>');
                 } elseif ($processId) {
                     $output->writeln('<info>Detaching...</info>');
-                    exit(0);
+                    posix_kill(getmypid(), 9);
                 }
 
                 if (posix_setsid() == -1) {
